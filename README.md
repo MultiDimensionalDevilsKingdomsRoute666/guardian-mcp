@@ -2,6 +2,8 @@
 
 A small [MCP](https://modelcontextprotocol.io) server by Guardian Protectors (@xrplove) · Universal Standard.
 It lets an AI assistant (Claude Desktop, Cursor, and others) look up live, read-only data from the XRP Ledger and the XRPL EVM sidechain.
+
+XRP Ledger calls go through Ripple's official [xrpl-py](https://github.com/XRPLF/xrpl-py) library. If the main node can't be reached, the server tries the fallback node. Everything is read-only: no keys, no signing.
 It never asks for or uses keys, seeds, or wallets.
 
 ## Run it
