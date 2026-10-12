@@ -7,6 +7,8 @@ import os
 
 import requests
 from fastmcp import FastMCP
+from xrpl.asyncio.clients import AsyncJsonRpcClient
+from xrpl.models.requests import AccountInfo, Ledger
 
 XRPL_RPC = os.environ.get('XRPL_RPC', 'https://rpc.xrplclaw.com')
 # Public XRPL JSON-RPC node, used if XRPL_RPC can't be reached.
@@ -18,14 +20,23 @@ ORACLE_ADDR = '0x6345A654B850a95Aa489BA5034F4047Cc461fE68'
 mcp = FastMCP(name="guardian-xrpl", instructions="XRPL ecosystem infrastructure")
 
 
-def xrpl_rpc(method, params=None):
-    """Call an XRPL JSON-RPC method, trying the fallback node if the main one fails."""
-    payload = {"method": method, "params": [params or {}]}
+# Ripple's official xrpl-py request models, one client per node.
+_XRPL_REQUESTS = {"account_info": AccountInfo, "ledger": Ledger}
+
+
+async def xrpl_rpc(method, params=None):
+    """Call an XRPL method through xrpl-py, trying the fallback node if the main one fails.
+
+    Returns the same {"result": {...}} shape as before, so the tools are unchanged."""
+    request = _XRPL_REQUESTS[method](**(params or {}))
     last_error = None
     for url in (XRPL_RPC, XRPL_RPC_FALLBACK):
         try:
-            return requests.post(url, json=payload, timeout=15).json()
-        except Exception as e:  # network error or bad JSON: try the next node
+            response = await AsyncJsonRpcClient(url).request(request)
+            if not response.is_successful() and response.result.get("error") != "actNotFound":
+                raise RuntimeError(response.result.get("error", "XRPL request failed"))
+            return {"result": response.result}
+        except Exception as e:  # network error or bad response: try the next node
             last_error = e
     raise last_error
 
@@ -36,7 +47,7 @@ def evm_rpc(method, params=None):
 
 @mcp.tool()
 async def xrpl_account_info(address: str) -> str:
-    resp = xrpl_rpc('account_info', {"account": address, "ledger_index": "validated"})
+    resp = await xrpl_rpc('account_info', {"account": address, "ledger_index": "validated"})
     if 'result' in resp and 'account_data' in resp['result']:
         acct = resp['result']['account_data']
         return json.dumps({"address": address,
@@ -48,7 +59,7 @@ async def xrpl_account_info(address: str) -> str:
 
 @mcp.tool()
 async def xrpl_ledger_info() -> str:
-    resp = xrpl_rpc('ledger', {"ledger_index": "validated"})
+    resp = await xrpl_rpc('ledger', {"ledger_index": "validated"})
     if 'result' in resp:
         r = resp['result']
         return json.dumps({"ledger_index": r.get('ledger_index'),
@@ -85,7 +96,7 @@ async def evernode_network_stats() -> str:
 async def bridge_health_check() -> str:
     checks, alerts = [], []
     try:
-        r = xrpl_rpc('ledger', {"ledger_index": "validated"})
+        r = await xrpl_rpc('ledger', {"ledger_index": "validated"})
         li = r.get('result', {}).get('ledger_index')
         checks.append({"component": "XRPL", "status": "ok", "ledger": li})
     except Exception as e:
