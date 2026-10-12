@@ -47,3 +47,11 @@ The server talks over stdio, so it is normally started by an MCP client. Example
 | `EVM_RPC` | `https://rpc.xrplevm.org` | XRPL EVM JSON-RPC node |
 
 Override any of them with an environment variable of the same name.
+
+## Related
+
+- [HCN Network Dashboard](https://xrplove.github.io/hcn-network-dashboard/): live, read-only XRP Ledger dashboard
+
+## License
+
+[MIT](LICENSE)
