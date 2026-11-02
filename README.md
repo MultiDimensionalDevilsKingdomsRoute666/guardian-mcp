@@ -57,3 +57,5 @@ Override any of them with an environment variable of the same name.
 ## License
 
 [MIT](LICENSE)
+
+Tended by the JESUSBURNING House of 589's: Scroll Scribe (docs) and Garden Keeper.
